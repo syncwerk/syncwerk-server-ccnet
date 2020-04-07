@@ -340,14 +340,14 @@ add_ldapuser (CcnetDB *db,
     if (extra_attrs)
         rc = ccnet_db_statement_query (db,
                                        "INSERT INTO LDAPUsers (email, password, is_staff, "
-                                       "is_active, extra_attrs) VALUES (?, ?, ?, ?, ?)",
-                                       5, "string", email, "string", password, "int",
-                                       is_staff, "int", is_active, "string", extra_attrs);
+                                       "is_active, extra_attrs, ctime) VALUES (?, ?, ?, ?, ?, ?)",
+                                       6, "string", email, "string", password, "int",
+                                       is_staff, "int", is_active, "string", extra_attrs, "int64", now);
     else
         rc = ccnet_db_statement_query (db,
                                        "INSERT INTO LDAPUsers (email, password, is_staff, "
-                                       "is_active) VALUES (?, ?, ?, ?)", 4, "string", email,
-                                       "string", password, "int", is_staff, "int", is_active);
+                                       "is_active, ctime) VALUES (?, ?, ?, ?, ?)", 5, "string", email,
+                                       "string", password, "int", is_staff, "int", is_active, "int64", now);
     if (rc < 0) {
         return rc;
     }
@@ -584,7 +584,7 @@ static int check_db_table (CcnetDB *db)
           "id BIGINT PRIMARY KEY AUTO_INCREMENT, "
           "email VARCHAR(255) NOT NULL, password varchar(255) NOT NULL, "
           "is_staff BOOL NOT NULL, is_active BOOL NOT NULL, extra_attrs TEXT, "
-          "reference_id VARCHAR(255), "
+          "ctime BIGINT, reference_id VARCHAR(255), "
           "UNIQUE INDEX(email), UNIQUE INDEX (reference_id)) ENGINE=INNODB";
         if (ccnet_db_query (db, sql) < 0)
             return -1;
@@ -639,7 +639,7 @@ static int check_db_table (CcnetDB *db)
         sql = "CREATE TABLE IF NOT EXISTS LDAPUsers ("
           "id INTEGER PRIMARY KEY AUTOINCREMENT, "
           "email TEXT NOT NULL, password TEXT NOT NULL, "
-          "is_staff BOOL NOT NULL, is_active BOOL NOT NULL, extra_attrs TEXT, "
+          "is_staff BOOL NOT NULL, is_active BOOL NOT NULL, extra_attrs TEXT, ctime INTEGER,"
           "reference_id TEXT)";
         if (ccnet_db_query (db, sql) < 0)
             return -1;
@@ -692,7 +692,7 @@ static int check_db_table (CcnetDB *db)
           "id SERIAL PRIMARY KEY, "
           "email VARCHAR(255) NOT NULL, password VARCHAR(255) NOT NULL, "
           "is_staff SMALLINT NOT NULL, is_active SMALLINT NOT NULL, extra_attrs TEXT,"
-          "reference_id VARCHAR(255))";
+          "ctime BIGINT, reference_id VARCHAR(255))";
         if (ccnet_db_query (db, sql) < 0)
             return -1;
 
@@ -1169,7 +1169,7 @@ get_emailuser (CcnetUserManager *manager,
     if (manager->use_ldap) {
         int ret = ccnet_db_statement_foreach_row (db,
                                                   "SELECT l.id, l.email, is_staff, is_active, "
-                                                  "reference_id, role "
+                                                  "reference_id, role, l.ctime "
                                                   "FROM LDAPUsers l LEFT JOIN UserRole ON "
                                                   "l.email = UserRole.email WHERE l.email = ?",
                                                   get_ldap_emailuser_cb,
@@ -1304,13 +1304,14 @@ get_ldap_emailusers_cb (CcnetDBRow *row, void *data)
     int is_staff = ccnet_db_row_get_column_int (row, 2);
     int is_active = ccnet_db_row_get_column_int (row, 3);
     const char *role = ccnet_db_row_get_column_text (row, 4);
+    gint64 ctime = ccnet_db_row_get_column_int64 (row, 5);
 
     emailuser = g_object_new (CCNET_TYPE_EMAIL_USER,
                               "id", id,
                               "email", email,
                               "is_staff", is_staff,
                               "is_active", is_active,
-                              "ctime", (gint64)0,
+                              "ctime", ctime,
                               "role", role ? role : "",
                               "source", "LDAPImport",
                               "password", "!",
@@ -1350,7 +1351,7 @@ ccnet_user_manager_get_emailusers (CcnetUserManager *manager,
                     status_condition = "WHERE t1.is_active = 0";
 
                 sql = g_strdup_printf ("SELECT t1.id, t1.email, t1.is_staff, "
-                                       "t1.is_active, t2.role "
+                                       "t1.is_active, t2.role, t1.ctime "
                                        "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
                                        "ON t1.email = t2.email %s",
                                        status_condition);
@@ -1367,7 +1368,7 @@ ccnet_user_manager_get_emailusers (CcnetUserManager *manager,
                     status_condition = "WHERE t1.is_active = 0";
 
                 sql = g_strdup_printf ("SELECT t1.id, t1.email, t1.is_staff, "
-                                       "t1.is_active, t2.role "
+                                       "t1.is_active, t2.role, t1.ctime "
                                        "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
                                        "ON t1.email = t2.email %s LIMIT ? OFFSET ?",
                                        status_condition);
@@ -1463,7 +1464,7 @@ ccnet_user_manager_search_emailusers (CcnetUserManager *manager,
             if (start == -1 && limit == -1) {
                 rc = ccnet_db_statement_foreach_row (db,
                                                      "SELECT t1.id, t1.email, t1.is_staff, "
-                                                     "t1.is_active, t2.role "
+                                                     "t1.is_active, t2.role, t1.ctime "
                                                      "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
                                                      "ON t1.email = t2.email WHERE t1.email LIKE ?",
                                                      get_ldap_emailusers_cb,
@@ -1471,7 +1472,7 @@ ccnet_user_manager_search_emailusers (CcnetUserManager *manager,
             } else {
                 rc = ccnet_db_statement_foreach_row (db,
                                                      "SELECT t1.id, t1.email, t1.is_staff, "
-                                                     "t1.is_active, t2.role "
+                                                     "t1.is_active, t2.role, t1.ctime "
                                                      "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
                                                      "ON t1.email = t2.email WHERE t1.email LIKE ? "
                                                      "LIMIT ? OFFSET ?",
@@ -1766,7 +1767,7 @@ ccnet_user_manager_get_superusers(CcnetUserManager *manager)
     if (ccnet_db_foreach_selected_row (db,
                                        "SELECT t1.id, t1.email, "
                                        "t1.is_staff, t1.is_active, "
-                                       "t2.role FROM LDAPUsers t1 "
+                                       "t2.role, t1.ctime FROM LDAPUsers t1 "
                                        "LEFT JOIN UserRole t2 "
                                        "ON t1.email = t2.email "
                                        "WHERE is_staff = 1",
