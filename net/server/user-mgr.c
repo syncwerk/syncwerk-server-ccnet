@@ -1348,14 +1348,14 @@ ccnet_user_manager_get_emailusers (CcnetUserManager *manager,
         } else if (g_strcmp0 (source, "LDAPImport") == 0) {
             if (start == -1 && limit == -1) {
                 if (g_strcmp0(status, "active") == 0)
-                    status_condition = "WHERE t1.is_active = 1";
+                    status_condition = "WHERE u.is_active = 1";
                 else if (g_strcmp0(status, "inactive") == 0)
-                    status_condition = "WHERE t1.is_active = 0";
+                    status_condition = "WHERE u.is_active = 0";
 
-                sql = g_strdup_printf ("SELECT t1.id, t1.email, t1.is_staff, "
-                                       "t1.is_active, t2.role, t1.ctime "
-                                       "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
-                                       "ON t1.email = t2.email %s",
+                sql = g_strdup_printf ("SELECT u.id, u.email, u.is_staff, "
+                                       "u.is_active, r.role, u.ctime "
+                                       "FROM LDAPUsers u LEFT JOIN UserRole r "
+                                       "ON u.email = r.email %s",
                                        status_condition);
 
                 rc = ccnet_db_statement_foreach_row (db,
@@ -1365,14 +1365,14 @@ ccnet_user_manager_get_emailusers (CcnetUserManager *manager,
                 g_free (sql);
             } else {
                 if (g_strcmp0(status, "active") == 0)
-                    status_condition = "WHERE t1.is_active = 1";
+                    status_condition = "WHERE u.is_active = 1";
                 else if (g_strcmp0(status, "inactive") == 0)
-                    status_condition = "WHERE t1.is_active = 0";
+                    status_condition = "WHERE u.is_active = 0";
 
-                sql = g_strdup_printf ("SELECT t1.id, t1.email, t1.is_staff, "
-                                       "t1.is_active, t2.role, t1.ctime "
-                                       "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
-                                       "ON t1.email = t2.email %s LIMIT ? OFFSET ?",
+                sql = g_strdup_printf ("SELECT u.id, u.email, u.is_staff, "
+                                       "u.is_active, r.role, u.ctime "
+                                       "FROM LDAPUsers u LEFT JOIN UserRole r "
+                                       "ON u.email = r.email %s LIMIT ? OFFSET ?",
                                        status_condition);
 
                 rc = ccnet_db_statement_foreach_row (db,
@@ -1465,18 +1465,18 @@ ccnet_user_manager_search_emailusers (CcnetUserManager *manager,
         if (strcmp (source, "LDAP") == 0) {
             if (start == -1 && limit == -1) {
                 rc = ccnet_db_statement_foreach_row (db,
-                                                     "SELECT t1.id, t1.email, t1.is_staff, "
-                                                     "t1.is_active, t2.role, t1.ctime "
-                                                     "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
-                                                     "ON t1.email = t2.email WHERE t1.email LIKE ?",
+                                                     "SELECT u.id, u.email, u.is_staff, "
+                                                     "u.is_active, r.role, u.ctime "
+                                                     "FROM LDAPUsers u LEFT JOIN UserRole r "
+                                                     "ON u.email = r.email WHERE u.email LIKE ?",
                                                      get_ldap_emailusers_cb,
                                                      &ret, 1, "string", db_patt);
             } else {
                 rc = ccnet_db_statement_foreach_row (db,
-                                                     "SELECT t1.id, t1.email, t1.is_staff, "
-                                                     "t1.is_active, t2.role, t1.ctime "
-                                                     "FROM LDAPUsers t1 LEFT JOIN UserRole t2 "
-                                                     "ON t1.email = t2.email WHERE t1.email LIKE ? "
+                                                     "SELECT u.id, u.email, u.is_staff, "
+                                                     "u.is_active, r.role, u.ctime "
+                                                     "FROM LDAPUsers u LEFT JOIN UserRole r "
+                                                     "ON u.email = r.email WHERE u.email LIKE ? "
                                                      "LIMIT ? OFFSET ?",
                                                      get_ldap_emailusers_cb,
                                                      &ret, 3, "string", db_patt,
@@ -1767,11 +1767,11 @@ ccnet_user_manager_get_superusers(CcnetUserManager *manager)
     }
 
     if (ccnet_db_foreach_selected_row (db,
-                                       "SELECT t1.id, t1.email, "
-                                       "t1.is_staff, t1.is_active, "
-                                       "t2.role, t1.ctime FROM LDAPUsers t1 "
-                                       "LEFT JOIN UserRole t2 "
-                                       "ON t1.email = t2.email "
+                                       "SELECT u.id, u.email, "
+                                       "u.is_staff, u.is_active, "
+                                       "r.role, u.ctime FROM LDAPUsers u "
+                                       "LEFT JOIN UserRole r "
+                                       "ON u.email = r.email "
                                        "WHERE is_staff = 1",
                                        get_ldap_emailusers_cb, &ret) < 0) {
         while (ret != NULL) {
