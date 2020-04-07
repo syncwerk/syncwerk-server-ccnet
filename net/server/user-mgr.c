@@ -324,6 +324,7 @@ add_ldapuser (CcnetDB *db,
 {
     int rc;
     int uid = -1;
+    gint64 now = get_current_time();
 
     rc = ccnet_db_statement_foreach_row (db,
                                          "SELECT id FROM LDAPUsers WHERE email = ?",
