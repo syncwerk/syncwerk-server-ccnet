@@ -1124,13 +1124,14 @@ get_ldap_emailuser_cb (CcnetDBRow *row, void *data)
     int is_active = ccnet_db_row_get_column_int (row, 3);
     const char *reference_id = ccnet_db_row_get_column_text (row, 4);
     const char *role = ccnet_db_row_get_column_text (row, 5);
+    gint64 ctime = ccnet_db_row_get_column_int64 (row, 6);
 
     *p_emailuser = g_object_new (CCNET_TYPE_EMAIL_USER,
                                  "id", id,
                                  "email", email,
                                  "is_staff", is_staff,
                                  "is_active", is_active,
-                                 "ctime", (gint64)0,
+                                 "ctime", ctime,
                                  "source", "LDAPImport",
                                  "password", "!",
                                  "reference_id", reference_id,
